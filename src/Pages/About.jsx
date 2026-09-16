@@ -229,7 +229,7 @@ const AboutPage = () => {
                 data-aos-duration="1300"
                 itemProp="name"
               >
-                Eki Zulfar Rachman
+                Daffa Evan Fadila
               </span>
             </h2>
             
@@ -238,8 +238,7 @@ const AboutPage = () => {
               data-aos="fade-right"
               data-aos-duration="1500"
             >
-        Saya adalah mahasiswa Teknik Informatika yang berfokus pada pengembangan Front-End. 
-Saya berfokus pada penciptaan pengalaman digital yang menarik dan selalu berupaya memberikan solusi terbaik dalam setiap proyek yang saya kerjakan.
+        Saya adalah pelajar SMK jurusan Teknik Komputer dan Jaringan yang berfokus pada infrastruktur sistem dan pengelolaan jaringan, Saya berfokus pada penciptaan konektivitas yang handal dan selalu berupaya memberikan solusi infrastruktur terbaik dalam setiap proyek yang saya kerjakan
                   </p>
 
                {/* Quote Section */}

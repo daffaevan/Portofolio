@@ -104,18 +104,18 @@ function a11yProps(index) {
 
 // techStacks tetap sama
 const techStacks = [
+  { icon: "mikrotik.svg", language: "Mikrotik" },
+  { icon: "linux.svg", language: "Linux" },
+  { icon: "iot.svg", language: "IoT " },
+  { icon: "cisco.svg", language: "Cisco " },
+  { icon: "networking.svg", language: "Networking" },
+  { icon: "fiber.svg", language: "Fiber Optics" },
+  { icon: "github.svg", language: "Github" },
   { icon: "html.svg", language: "HTML" },
-  { icon: "css.svg", language: "CSS" },
   { icon: "javascript.svg", language: "JavaScript" },
-  { icon: "tailwind.svg", language: "Tailwind CSS" },
-  { icon: "reactjs.svg", language: "ReactJS" },
-  { icon: "vite.svg", language: "Vite" },
-  { icon: "nodejs.svg", language: "Node JS" },
-  { icon: "bootstrap.svg", language: "Bootstrap" },
-  { icon: "firebase.svg", language: "Firebase" },
-  { icon: "MUI.svg", language: "Material UI" },
+  { icon: "css.svg", language: "CSS" },
   { icon: "vercel.svg", language: "Vercel" },
-  { icon: "SweetAlert.svg", language: "SweetAlert2" },
+  { icon: "virtualbox.svg", language: "VrtualBox" },
 ];
 
 export default function FullWidthTabs() {

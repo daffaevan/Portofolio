@@ -41,7 +41,7 @@ This project is built using modern web technologies:
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/EkiZR/Portofolio_V5.git
+git clone https://github.com/daffaevan/Portofolio.git
 cd Portofolio_V5
 npm install
 ```
@@ -246,7 +246,7 @@ INSERT INTO public.portfolio_comments (
 SELECT
   'developed by daffa. This project is open-source and free to use.',
   'daffa',
-  'https://egwzigagwyrmwjsrebzx.supabase.co/storage/v1/object/public/profile-images/profile-images/1771939421615_xx2q8hgya6e.jpeg',
+  'https://umyqolmkfuwajfjswdlj.supabase.co/storage/v1/object/public/profile-images/profile-images/1789567702108_yxy8eiashpf.jpg',
   true,
   now()
 WHERE NOT EXISTS (

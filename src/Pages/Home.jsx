@@ -143,10 +143,10 @@ const Home = () => {
         <title>Daffa Evan Fadila — Network Engineer</title>
         <meta name="description" content="Website resmi Daffa Evan Fadila, Network Engineer. Saya berfokus pada penciptaan pengalaman digital yang menarik dan selalu berupaya memberikan solusi terbaik dalam setiap proyek yang saya kerjakan." />
      <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ekizr.com" />
+        <link rel="canonical" href="daffaevan.vercel.app" />
         <meta property="og:title" content="Daffa Evan Fadila — Network Engineer" />
      <meta property="og:description" content="Website resmi dan portofolio Daffa Evan Fadila, Network Engineer." />
-        <meta property="og:url" content="https://ekizr.com" />
+        <meta property="og:url" content="daffaevan.vercel.app" />
         <meta property="og:type" content="website" />
         <script type="application/ld+json">{`
           {
@@ -154,11 +154,11 @@ const Home = () => {
             "@type": "Person",
             "name": "Daffa Evan Fadila",
             "jobTitle": "Network Engineer",
-            "url": "https://ekizr.com",
+            "url": "daffaevan.vercel.app",
             "sameAs": [
-              "https://github.com/EkiZR",
-              "https://www.linkedin.com/in/ekizr/",
-              "https://www.instagram.com/ekizr_/"
+              "https://github.com/daffaevan",
+              "https://www.linkedin.com/in/daffaevan/",
+              "https://www.instagram.com/dapaaapaaa/"
             ]
           }
         `}</script>

@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Github,
   Pencil,
+  AlertCircle,
 } from "lucide-react";
 
 const Card = ({ children, className = "" }) => (
@@ -31,7 +32,7 @@ const InputField = ({
 }) => (
   <div className="space-y-1.5">
     <label className="text-xs text-indigo-300/70 uppercase tracking-wider font-medium">
-      {label}
+      {label} {required && <span className="text-red-400">*</span>}
     </label>
     <input
       type={type}
@@ -73,21 +74,34 @@ const SkeletonCard = () => (
 
 const ProjectCard = ({ project, onDelete, onEdit }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  const imageUrl = project?.Img || project?.img || "";
 
   return (
     <Card>
       <div className="p-4 flex flex-col h-full">
-        {project.Img && (
-          <div className="w-full aspect-[16/8] rounded-xl mb-4 border border-white/8 overflow-hidden bg-white/5">
-            {!imgLoaded && (
-              <div className="w-full h-full animate-pulse bg-white/5" />
+        {imageUrl && (
+          <div className="w-full aspect-[16/8] rounded-xl mb-4 border border-white/8 overflow-hidden bg-white/5 relative flex items-center justify-center">
+            {!imgLoaded && !hasError && (
+              <div className="absolute inset-0 w-full h-full animate-pulse bg-white/5" />
             )}
-            <img
-              src={project.Img}
-              alt={project.Title}
-              onLoad={() => setImgLoaded(true)}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0 absolute"}`}
-            />
+            {hasError ? (
+              <div className="p-2 text-center text-[10px] text-red-400">
+                <AlertCircle className="w-4 h-4 mx-auto mb-1 text-red-400" />
+                Gagal muat gambar
+              </div>
+            ) : (
+              <img
+                src={imageUrl}
+                alt={project.Title || "Project Image"}
+                onLoad={() => setImgLoaded(true)}
+                onError={() => setHasError(true)}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  imgLoaded ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            )}
           </div>
         )}
         <h3 className="font-semibold text-white text-sm mb-1">
@@ -117,6 +131,7 @@ const ProjectCard = ({ project, onDelete, onEdit }) => {
                 href={project.Link}
                 target="_blank"
                 rel="noopener noreferrer"
+                title="Live Preview"
                 className="p-1.5 rounded-lg border border-white/10 text-gray-500 hover:text-white hover:border-white/20 transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -127,6 +142,7 @@ const ProjectCard = ({ project, onDelete, onEdit }) => {
                 href={project.Github}
                 target="_blank"
                 rel="noopener noreferrer"
+                title="GitHub Repository"
                 className="p-1.5 rounded-lg border border-white/10 text-gray-500 hover:text-white hover:border-white/20 transition-colors"
               >
                 <Github className="w-3.5 h-3.5" />
@@ -203,12 +219,12 @@ const ProjectForm = ({
     Github: initial?.Github || "",
   });
   const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(initial?.Img || null);
+  const [preview, setPreview] = useState(initial?.Img || initial?.img || null);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleFileChange = (e) => {
-    const f = e.target.files[0];
+    const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
     setPreview(URL.createObjectURL(f));
@@ -259,13 +275,13 @@ const ProjectForm = ({
           placeholder="e.g. Auth, Dark mode, REST API"
         />
         <InputField
-          label="Live URL"
+          label="Live URL (Opsional)"
           value={form.Link}
           onChange={set("Link")}
           placeholder="https://yourproject.com"
         />
         <InputField
-          label="GitHub URL"
+          label="GitHub URL (Opsional)"
           value={form.Github}
           onChange={set("Github")}
           placeholder="https://github.com/username/repo"
@@ -340,11 +356,16 @@ export default function Projects() {
 
   const fetchProjects = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("projects")
       .select("*")
       .order("created_at", { ascending: false });
-    setProjects(data || []);
+
+    if (error) {
+      console.error("Error fetching projects:", error.message);
+    } else {
+      setProjects(data || []);
+    }
     setLoading(false);
   };
 
@@ -353,69 +374,108 @@ export default function Projects() {
   }, []);
 
   const uploadImage = async (f) => {
-    const fileName = `${Date.now()}-${f.name}`;
-    await supabase.storage.from("project-images").upload(fileName, f);
+    const fileExt = f.name.split(".").pop() || "png";
+    const fileName = `proj-${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from("project-images")
+      .upload(fileName, f);
+
+    if (uploadError) throw uploadError;
+
     const { data } = supabase.storage
       .from("project-images")
       .getPublicUrl(fileName);
+
     return data.publicUrl;
   };
 
   const handleCreate = async (form, file) => {
     setUploading(true);
-    let imgUrl = "";
-    if (file) imgUrl = await uploadImage(file);
-    await supabase.from("projects").insert({
-      Title: form.Title,
-      Description: form.Description,
-      Img: imgUrl,
-      TechStack: form.TechStack.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      Features: form.Features.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      Link: form.Link,
-      Github: form.Github,
-    });
-    setShowCreate(false);
-    setUploading(false);
-    fetchProjects();
+    try {
+      let imgUrl = "";
+      if (file) {
+        imgUrl = await uploadImage(file);
+      }
+
+      const payload = {
+        Title: form.Title,
+        Description: form.Description,
+        Img: imgUrl,
+        TechStack: form.TechStack
+          ? form.TechStack.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        Features: form.Features
+          ? form.Features.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        Link: form.Link || null,
+        Github: form.Github || null,
+      };
+
+      const { error } = await supabase.from("projects").insert([payload]);
+      if (error) throw error;
+
+      setShowCreate(false);
+      fetchProjects();
+    } catch (err) {
+      console.error("Create error:", err.message);
+      alert("Gagal membuat project: " + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleEdit = async (form, file) => {
     setUploading(true);
-    let imgUrl = editProject.Img || "";
-    if (file) imgUrl = await uploadImage(file);
-    await supabase
-      .from("projects")
-      .update({
+    try {
+      let imgUrl = editProject.Img || editProject.img || "";
+      if (file) {
+        imgUrl = await uploadImage(file);
+      }
+
+      const payload = {
         Title: form.Title,
         Description: form.Description,
         Img: imgUrl,
-        TechStack: form.TechStack.split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        Features: form.Features.split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        Link: form.Link,
-        Github: form.Github,
-      })
-      .eq("id", editProject.id);
-    setEditProject(null);
-    setUploading(false);
-    fetchProjects();
+        TechStack: form.TechStack
+          ? form.TechStack.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        Features: form.Features
+          ? form.Features.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        Link: form.Link || null,
+        Github: form.Github || null,
+      };
+
+      const { error } = await supabase
+        .from("projects")
+        .update(payload)
+        .eq("id", editProject.id);
+
+      if (error) throw error;
+
+      setEditProject(null);
+      fetchProjects();
+    } catch (err) {
+      console.error("Edit error:", err.message);
+      alert("Gagal mengupdate project: " + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const deleteProject = async (id) => {
     if (!confirm("Delete this project?")) return;
-    await supabase.from("projects").delete().eq("id", id);
-    fetchProjects();
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) {
+      console.error("Delete error:", error.message);
+    } else {
+      fetchProjects();
+    }
   };
 
   return (
-    <div className="space-y-6z ">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
         <div className="flex items-center gap-3">

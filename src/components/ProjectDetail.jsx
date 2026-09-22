@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { toSlug } from "../utils/slug";
+import { supabase } from "../supabase";
 
 const TECH_ICONS = {
   React: Globe,
@@ -59,8 +60,8 @@ const FeatureItem = ({ feature }) => {
 };
 
 const ProjectStats = ({ project }) => {
-  const techStackCount = project?.TechStack?.length || 0;
-  const featuresCount = project?.Features?.length || 0;
+  const techStackCount = Array.isArray(project?.TechStack) ? project.TechStack.length : 0;
+  const featuresCount = Array.isArray(project?.Features) ? project.Features.length : 0;
 
   return (
     <div className="grid grid-cols-2 gap-3 md:gap-4 p-3 md:p-4 bg-[#0a0a1a] rounded-xl overflow-hidden relative">
@@ -103,6 +104,7 @@ const ProjectStats = ({ project }) => {
 };
 
 const handleGithubClick = (githubLink) => {
+  if (!githubLink) return false;
   if (githubLink === "Private") {
     Swal.fire({
       icon: "info",
@@ -126,21 +128,60 @@ const ProjectDetails = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    const storedProjects = JSON.parse(localStorage.getItem("projects")) || [];
-    // Cari project berdasarkan slug yang di-generate dari Title
-    const selectedProject = storedProjects.find(
-      (p) => toSlug(p.Title) === slug,
-    );
 
-    if (selectedProject) {
-      const enhancedProject = {
-        ...selectedProject,
-        Features: selectedProject.Features || [],
-        TechStack: selectedProject.TechStack || [],
-        Github: selectedProject.Github || "https://github.com/EkiZR",
-      };
-      setProject(enhancedProject);
-    }
+    const loadProject = async () => {
+      let selectedProject = null;
+
+      // 1. Coba baca dari localStorage
+      try {
+        const storedProjects = JSON.parse(localStorage.getItem("projects")) || [];
+        selectedProject = storedProjects.find(
+          (p) => toSlug(p?.Title || p?.title || "") === slug
+        );
+      } catch (err) {
+        console.error("Error reading localStorage:", err);
+      }
+
+      // 2. Jika tidak ada di cache localStorage, ambil langsung dari Supabase
+      if (!selectedProject && supabase) {
+        try {
+          const { data, error } = await supabase.from("projects").select("*");
+          if (!error && data) {
+            selectedProject = data.find(
+              (p) => toSlug(p?.Title || p?.title || "") === slug
+            );
+            if (selectedProject) {
+              localStorage.setItem("projects", JSON.stringify(data));
+            }
+          }
+        } catch (err) {
+          console.error("Gagal mengambil data dari Supabase:", err);
+        }
+      }
+
+      if (selectedProject) {
+        // Normalisasi format data agar tidak error
+        const parseArray = (val) => {
+          if (Array.isArray(val)) return val;
+          if (typeof val === "string") return val.split(",").map((s) => s.trim()).filter(Boolean);
+          return [];
+        };
+
+        const enhancedProject = {
+          ...selectedProject,
+          Title: selectedProject.Title || selectedProject.title || "",
+          Description: selectedProject.Description || selectedProject.description || "",
+          Features: parseArray(selectedProject.Features || selectedProject.features),
+          TechStack: parseArray(selectedProject.TechStack || selectedProject.techStack || selectedProject.tech_stack),
+          Github: selectedProject.Github || selectedProject.github || "",
+          Link: selectedProject.Link || selectedProject.link || "",
+          Img: selectedProject.Img || selectedProject.img || "",
+        };
+        setProject(enhancedProject);
+      }
+    };
+
+    loadProject();
   }, [slug]);
 
   if (!project) {
@@ -156,7 +197,7 @@ const ProjectDetails = () => {
     );
   }
 
-  const projectUrl = `https://ekizr.com/project/${toSlug(project.Title)}`;
+  const projectUrl = `daffaevan.vercel.app/project/${toSlug(project.Title)}`;
 
   return (
     <>
@@ -167,7 +208,7 @@ const ProjectDetails = () => {
           content={
             project.Description
               ? project.Description.slice(0, 155)
-              : `Project ${project.Title} oleh Daffa Evan Fadila — Network Engineer.`
+              : `Project ${project.Title} oleh Daffa Evan Fadila.`
           }
         />
         <meta name="robots" content="index, follow" />
@@ -183,24 +224,10 @@ const ProjectDetails = () => {
         <meta property="og:url" content={projectUrl} />
         <meta property="og:type" content="website" />
         {project.Img && <meta property="og:image" content={project.Img} />}
-        <script type="application/ld+json">{`
-          {
-            "@context": "https://schema.org",
-            "@type": "CreativeWork",
-            "name": "${project.Title}",
-            "description": "${project.Description?.replace(/"/g, '\\"')}",
-            "url": "${projectUrl}",
-            "author": {
-              "@type": "Person",
-              "name": "Daffa Evan Fadila",
-              "url": "https://ekizr.com"
-            }
-          }
-        `}</script>
       </Helmet>
 
       <div className="min-h-screen bg-[#030014] px-[2%] sm:px-0 relative overflow-hidden">
-        <div className="fixed inset-0">
+        <div className="fixed inset-0 pointer-events-none">
           <div className="absolute -inset-[10px] opacity-20">
             <div className="absolute top-0 -left-4 w-72 md:w-96 h-72 md:h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
             <div className="absolute top-0 -right-4 w-72 md:w-96 h-72 md:h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000" />
@@ -246,31 +273,38 @@ const ProjectDetails = () => {
 
                 <ProjectStats project={project} />
 
+                {/* Tombol Demo & Github (Muncul hanya jika URL tersedia) */}
                 <div className="flex flex-wrap gap-3 md:gap-4">
-                  <a
-                    href={project.Link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative inline-flex items-center space-x-1.5 md:space-x-2 px-4 md:px-8 py-2.5 md:py-4 bg-gradient-to-r from-blue-600/10 to-purple-600/10 hover:from-blue-600/20 hover:to-purple-600/20 text-blue-300 rounded-xl transition-all duration-300 border border-blue-500/20 hover:border-blue-500/40 backdrop-blur-xl overflow-hidden text-sm md:text-base"
-                  >
-                    <div className="absolute inset-0 translate-y-[100%] bg-gradient-to-r from-blue-600/10 to-purple-600/10 transition-transform duration-300 group-hover:translate-y-[0%]" />
-                    <ExternalLink className="relative w-4 h-4 md:w-5 md:h-5 group-hover:rotate-12 transition-transform" />
-                    <span className="relative font-medium">Live Demo</span>
-                  </a>
+                  {project.Link && (
+                    <a
+                      href={project.Link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative inline-flex items-center space-x-1.5 md:space-x-2 px-4 md:px-8 py-2.5 md:py-4 bg-gradient-to-r from-blue-600/10 to-purple-600/10 hover:from-blue-600/20 hover:to-purple-600/20 text-blue-300 rounded-xl transition-all duration-300 border border-blue-500/20 hover:border-blue-500/40 backdrop-blur-xl overflow-hidden text-sm md:text-base"
+                    >
+                      <div className="absolute inset-0 translate-y-[100%] bg-gradient-to-r from-blue-600/10 to-purple-600/10 transition-transform duration-300 group-hover:translate-y-[0%]" />
+                      <ExternalLink className="relative w-4 h-4 md:w-5 md:h-5 group-hover:rotate-12 transition-transform" />
+                      <span className="relative font-medium">Live Demo</span>
+                    </a>
+                  )}
 
-                  <a
-                    href={project.Github}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative inline-flex items-center space-x-1.5 md:space-x-2 px-4 md:px-8 py-2.5 md:py-4 bg-gradient-to-r from-purple-600/10 to-pink-600/10 hover:from-purple-600/20 hover:to-pink-600/20 text-purple-300 rounded-xl transition-all duration-300 border border-purple-500/20 hover:border-purple-500/40 backdrop-blur-xl overflow-hidden text-sm md:text-base"
-                    onClick={(e) =>
-                      !handleGithubClick(project.Github) && e.preventDefault()
-                    }
-                  >
-                    <div className="absolute inset-0 translate-y-[100%] bg-gradient-to-r from-purple-600/10 to-pink-600/10 transition-transform duration-300 group-hover:translate-y-[0%]" />
-                    <Github className="relative w-4 h-4 md:w-5 md:h-5 group-hover:rotate-12 transition-transform" />
-                    <span className="relative font-medium">Github</span>
-                  </a>
+                  {project.Github && (
+                    <a
+                      href={project.Github}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative inline-flex items-center space-x-1.5 md:space-x-2 px-4 md:px-8 py-2.5 md:py-4 bg-gradient-to-r from-purple-600/10 to-pink-600/10 hover:from-purple-600/20 hover:to-pink-600/20 text-purple-300 rounded-xl transition-all duration-300 border border-purple-500/20 hover:border-purple-500/40 backdrop-blur-xl overflow-hidden text-sm md:text-base"
+                      onClick={(e) => {
+                        if (!handleGithubClick(project.Github)) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <div className="absolute inset-0 translate-y-[100%] bg-gradient-to-r from-purple-600/10 to-pink-600/10 transition-transform duration-300 group-hover:translate-y-[0%]" />
+                      <Github className="relative w-4 h-4 md:w-5 md:h-5 group-hover:rotate-12 transition-transform" />
+                      <span className="relative font-medium">Github</span>
+                    </a>
+                  )}
                 </div>
 
                 <div className="space-y-4 md:space-y-6">
@@ -278,7 +312,7 @@ const ProjectDetails = () => {
                     <Code2 className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
                     Technologies Used
                   </h3>
-                  {project.TechStack.length > 0 ? (
+                  {project.TechStack && project.TechStack.length > 0 ? (
                     <div className="flex flex-wrap gap-2 md:gap-3">
                       {project.TechStack.map((tech, index) => (
                         <TechBadge key={index} tech={tech} />
@@ -293,23 +327,25 @@ const ProjectDetails = () => {
               </div>
 
               <div className="space-y-6 md:space-y-10 animate-slideInRight">
-                <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl group">
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#030014] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <img
-                    src={project.Img}
-                    alt={project.Title}
-                    className="w-full object-cover transform transition-transform duration-700 will-change-transform group-hover:scale-105"
-                    onLoad={() => setIsImageLoaded(true)}
-                  />
-                  <div className="absolute inset-0 border-2 border-white/0 group-hover:border-white/10 transition-colors duration-300 rounded-2xl" />
-                </div>
+                {project.Img && (
+                  <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl group">
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#030014] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <img
+                      src={project.Img}
+                      alt={project.Title}
+                      className="w-full object-cover transform transition-transform duration-700 will-change-transform group-hover:scale-105"
+                      onLoad={() => setIsImageLoaded(true)}
+                    />
+                    <div className="absolute inset-0 border-2 border-white/0 group-hover:border-white/10 transition-colors duration-300 rounded-2xl" />
+                  </div>
+                )}
 
                 <div className="bg-white/[0.02] backdrop-blur-xl rounded-2xl p-8 border border-white/10 space-y-6 hover:border-white/20 transition-colors duration-300 group">
                   <h3 className="text-xl font-semibold text-white/90 flex items-center gap-3">
                     <Star className="w-5 h-5 text-yellow-400 group-hover:rotate-[20deg] transition-transform duration-300" />
                     Key Features
                   </h3>
-                  {project.Features.length > 0 ? (
+                  {project.Features && project.Features.length > 0 ? (
                     <ul className="list-none space-y-2">
                       {project.Features.map((feature, index) => (
                         <FeatureItem key={index} feature={feature} />
